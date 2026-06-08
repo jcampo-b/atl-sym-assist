@@ -25,6 +25,23 @@ If you find yourself writing a comment, ask: would the code be clear without it?
 - [ ] Is any SA module importing or depending on an RM class directly? It shouldn't.
 - [ ] Is the controller doing anything beyond request validation, service delegation, and response formatting? Move that logic to a service.
 
+### Validation layer discipline
+- [ ] Is input validation (required fields, format, allowed values, conditional constraints) 
+      in the FormRequest, not in the Service?
+- [ ] Is there any guard in a Service or FormRequest that defends against a condition 
+      that middleware already prevents (e.g. null user when auth:sanctum is active)? Remove it.
+- [ ] Are you using FormRequest helpers (boolean(), integer(), string()) instead of 
+      reading raw from $this->validated()? Use the helpers.
+
+### RM round-trips
+- [ ] Does the response re-fetch from RM ($this->get($id)) when the write method 
+      already returns the updated data? Use the response directly unless there is 
+      a documented reason for the re-fetch.
+
+### State machine discipline  
+- [ ] Is all transition validation — including exception paths like emergency bypass — 
+      going through TaskStateMachine? The service should never inline transition guards.
+
 ### Code clarity
 - [ ] Are there comments that just restate what the code does? Delete them.
 - [ ] Are there comments that explain a non-obvious WHY? Keep them.

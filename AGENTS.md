@@ -42,6 +42,24 @@ RRM (RentManager API)  →  RM (Integrations/RentManager)  →  SA (other Module
 
 If you see PascalCase field names outside `app/Modules/Integrations/RentManager/` → STOP. That logic belongs in the RM layer.
 
+## Within-layer responsibilities
+Within the SA layer, each class has a strict role. Never mix responsibilities across classes.
+
+| Class type | Responsibility | Never put here |
+|---|---|---|
+| **FormRequest** | Input validation: required fields, format, allowed values, conditional constraints | Business logic, RM calls, state transitions |
+| **Service** | Orchestration: fetch → validate → write → respond | Inline transition guards, RM field names, input validation |
+| **StateMachine** | All transition validation, including exception paths (emergency, rework) | RM calls, input validation |
+| **Mapper (RM layer)** | RM ↔ SA field translation | Business rules, state logic |
+| **Controller** | Request delegation and response formatting | Any logic beyond calling the service |
+
+**Key rules derived from this:**
+- Input validation (required fields, format, allowed values, conditional constraints) → **FormRequest only**. Never in the Service.
+- All transition guards, including emergency bypass → **TaskStateMachine only**. Never inline in the Service.
+- Dead defensive code → if middleware already guarantees a condition (e.g. `auth:sanctum` guarantees non-null user), do not guard against it anywhere.
+- RM round-trips → only re-fetch from RM when strictly necessary and documented. If the write method already returns updated data, use it directly.
+- Always use **FormRequest helpers** (`boolean()`, `integer()`, `string()`) instead of reading raw from `$this->validated()`.
+
 ## Naming conventions
 
 | Context | Convention | Example |
