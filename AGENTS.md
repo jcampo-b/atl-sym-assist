@@ -200,10 +200,9 @@ Branch naming:
 A PR that changes any API surface MUST include a Testing Endpoints section.
 
 ## Human review gate
-Before committing or opening a PR, stop and notify the user:
-
-"Implementation is ready. Please review the code in your IDE before I commit.
-Let me know when to proceed."
+Before committing or opening a PR:
+1. Read `.atl/skills/code-review/SKILL.md` and run a self-review pass.
+2. Stop and notify the user: "Implementation is ready. Please review the code in your IDE before I commit. Let me know when to proceed."
 
 Do NOT commit or push until the user explicitly confirms.
 
