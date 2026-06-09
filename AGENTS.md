@@ -245,4 +245,28 @@ After receiving a correction or code review finding, write an entry to `.atl/mem
 After receiving PR review comments, save each finding to memory before
 applying any fix.
 
+After completing any session (task done, PR opened, or work paused), produce
+a session summary in chat with the following structure:
+- **What was done** — one paragraph
+- **Skills used** — list which skills were read and why
+- **Files touched** — list of files modified, created, or deleted
+- **Decisions made** — key architectural or implementation choices
+- **Open questions / follow-ups** — anything unresolved or pending
+
+This ensures corrections are not repeated across tickets.
+At the start of every new session, read all files in `.atl/memory/` before
+doing any work. These files contain corrections, known traps, and decisions
+from prior sessions that must not be repeated.
+
+After completing any task, write an entry to `.atl/memory/`:
+- Filename: `YYYY-MM-DD_HH-MM_<short-slug>.md`
+- Sections: What was done / Files touched / Decisions made / Open questions
+
+After receiving a correction or code review finding, write an entry to `.atl/memory/`:
+- Filename: `YYYY-MM-DD_HH-MM_correction-<short-slug>.md`
+- Sections: What was wrong / What the correct approach is / Rule to apply going forward
+
+After receiving PR review comments, save each finding to memory before
+applying any fix.
+
 This ensures corrections are not repeated across tickets.
