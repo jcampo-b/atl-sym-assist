@@ -40,7 +40,56 @@ git checkout -b feat/short-description
   those are in the diff. Only what changed and why it matters.
 - **Testing** — checkboxes only.
 - **Checklist** — checkboxes only.
+- **Screenshots / Examples** — only when a visual aid genuinely helps the reviewer. Omit if empty.
 - **Additional Notes** — only for decisions, known gaps, or follow-ups not captured elsewhere. Omit if empty.
+
+## PR body template
+This is the canonical template. Fill every section; omit only those marked optional.
+
+```markdown
+## Description
+Brief description of what this PR does and why it's needed.
+
+## Ticket
+- [Ticket #XXX](link-to-ticket) - Brief ticket description
+
+## Type of Change
+- [ ] Feature (`feat:`)
+- [ ] Bug fix (`fix:`)
+- [ ] Hotfix (`hotfix:`)
+- [ ] Refactoring (`refactor:`)
+- [ ] Documentation (`docs:`)
+- [ ] Tests (`test:`)
+- [ ] Chore (`chore:`)
+- [ ] Performance (`perf:`)
+
+## Changes Made
+- 
+- 
+- 
+
+## Testing
+- [ ] Unit tests pass
+- [ ] Feature tests pass
+- [ ] Manual testing completed
+- [ ] Tested in local environment
+- [ ] API documentation updated (if applicable)
+
+## Checklist
+- [ ] Code follows project conventions and naming standards
+- [ ] Tests added/updated for new functionality
+- [ ] Documentation updated (if needed)
+- [ ] No breaking changes (or documented if needed)
+- [ ] Code is self-documenting and readable
+- [ ] Dependencies updated (if applicable)
+- [ ] Migration files created/updated (if applicable)
+
+## Screenshots / Examples (if applicable)
+<!-- Add screenshots, API examples, or other visual aids if relevant -->
+
+## Additional Notes
+<!-- Any additional information, context, or concerns -->
+```
 
 ## Opening a PR — step by step
 
