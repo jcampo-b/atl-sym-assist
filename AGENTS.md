@@ -138,6 +138,11 @@ The agent layer NEVER modifies itself during work — it only reads from it. Eve
   Shipping them as placeholders adds noise without value.
 - `TaskStatus::cases()` returns enum cases in declaration order — no sort needed.
   Never add `usort` on top of it.
+- Simple field mapping in Request classes stays inline in `toData()` as
+  `$v['field'] ?? null`. Extract a resolver method only when there is actual
+  logic beyond a null coalesce (e.g. type casting, array transformation,
+  format normalization). Guards that duplicate what validation already enforces
+  are dead code — do not add them.
 - The rule engine fires AFTER a transition is written. Logic that bypasses
   `assertCanAdvance()` (emergency, rework) goes in `TaskService::updateStatus()`,
   not in a rule.
