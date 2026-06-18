@@ -146,6 +146,7 @@ The agent layer NEVER modifies itself during work — it only reads from it. Eve
 - The rule engine fires AFTER a transition is written. Logic that bypasses
   `assertCanAdvance()` (emergency, rework) goes in `TaskService::updateStatus()`,
   not in a rule.
+-  IMPORTANT: Always read linter.md to be aligend in each task in the Backend, this way, the code won't break when the linter runs.
 
 ## Laravel 12 rules
 - Providers: `bootstrap/providers.php` only.
