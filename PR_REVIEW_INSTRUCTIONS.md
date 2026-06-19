@@ -101,7 +101,7 @@ End with a one-line verdict: ready to merge / needs changes before merge.
 ## Step 4 — Record the review in memory
 
 After producing the review, create a memory file in:
-`/Users/awesomejohnny/Development/Braintly/SymAssist/.atl/memory`
+`/Users/awesomejohnny/Development/Braintly/SymAssist/.atl/memory/PR-reviews`
 
 Filename: `YYYY-MM-DD_HH-MM_pr-review-<issue>.md` (use the issue/ticket from the branch
 name, e.g. `devsym-319`; if none, use the branch name).
