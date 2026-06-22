@@ -103,6 +103,8 @@ End with a one-line verdict: ready to merge / needs changes before merge.
 After producing the review, create a memory file in:
 `/Users/awesomejohnny/Development/Braintly/SymAssist/.atl/memory/PR-reviews`
 
+Create the `PR-reviews/` folder if it doesn't exist.
+
 Filename: `YYYY-MM-DD_HH-MM_pr-review-<issue>.md` (use the issue/ticket from the branch
 name, e.g. `devsym-319`; if none, use the branch name).
 
@@ -132,7 +134,7 @@ Then stop.
 
 ## Hard rules
 
-- Do NOT edit, create, or delete any file EXCEPT the PR-review memory file in `.atl/memory`.
+- Do NOT edit, create, or delete any file EXCEPT the PR-review memory file in `.atl/memory/PR-reviews`.
 - Do NOT commit or push.
 - Do NOT apply fixes — only describe them.
 - Do NOT modify any other file in `.atl/` (it is read-only context except for the
