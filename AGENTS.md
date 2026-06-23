@@ -107,6 +107,22 @@ Read the relevant skill before implementing:
 - New task filter or schedule bucket → `.atl/skills/task-filters/SKILL.md`
 - Any git operation (branch, PR, commit) → `.atl/skills/git-workflow/SKILL.md`
 - Before committing any implementation → `.atl/skills/code-review/SKILL.md`
+- Solve a Linear ticket end-to-end → `.atl/skills/solve-ticket/SKILL.md` (or the `/solve-ticket` command)
+
+## Ticket workflow (solve-ticket)
+The `/solve-ticket <DEVSYM-XXX> [BE|FE|AI]` command solves a ticket end-to-end by
+orchestrating this AGENTS.md. It does NOT replace these rules — it executes them in order:
+read the brain (this file + memory + linter + code-review skill) -> read the ticket in
+Linear -> build a plan -> branch -> implement -> self-review -> PR -> summaries -> record SPACE times.
+
+Two human gates:
+- **Plan gate** (conditional): on frontier/architecture/research tickets, show the plan and
+  wait for approval BEFORE writing code. On CRUD/scoped fixes/FE, run straight through.
+- **Pre-commit gate** (always): after self-review, stop and wait for human review in the
+  IDE before committing. This is the "Human review gate" already defined above.
+
+The closing time log (context / PR / review / subtotal) feeds the weekly SPACE report
+(`.atl/skills/weekly-space-metrics-report/SKILL.md`).
 
 ## Boundaries — read this first
 - `.atl/` is the agent layer. All agent files (`AGENTS.md`, `skills/`, `memory/`) live here.
