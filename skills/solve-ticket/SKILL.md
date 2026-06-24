@@ -133,22 +133,39 @@ PR: <url>
 
 **8b. Internal summary — in chat for the dev:** if there was anything odd to watch for on review.
 
-**8c. Time logging for the SPACE report.** Record at close, in the internal comment or in
-`.atl/memory/`, this task's breakdown (this feeds Friday's report):
+**8c. Time logging for the SPACE report.** Before closing, ASK the dev for the human
+times — do NOT estimate or invent them. Claude fills only what it actually knows (its own
+execution time, from session timestamps); the dev fills the human items from fresh memory.
+
+Prompt the dev with exactly these questions (in Spanish, since the chat is in Spanish):
+"Antes de cerrar, pasame los tiempos reales de este ticket:
+  • Research (investigar API/approach/docs): ¿cuántos min?
+  • Explicar contexto a Claude (armar el prompt, juntar links): ¿cuántos min?
+  • Revisar las modificaciones en el IDE: ¿cuántos min?
+(El tiempo de ejecución mío + PR lo completo yo.)"
+
+If the dev doesn't answer or says "skip", record the items as "not recorded" — never fill
+them with a guess.
+
+Then write the block to `.atl/memory/` (and/or the internal comment):
 ```
 DEVSYM-<n> — <title>
 Estimation: <ticket points / hours>
 Actual time:
-  • Explain context to Claude: X min
-  • Prepare/create the PR: X min
-  • Review Claude's modifications: X min
+  • Research (API / approach / docs): X min        [dev-provided, omit line if 0]
+  • Explain context to Claude: X min               [dev-provided]
+  • Claude execution + PR: X min                    [Claude-measured, from timestamps]
+  • Review modifications (IDE): X min               [dev-provided]
   • Subtotal: X h Y min
 Adoption: [100% AI | with intervention] — what was reworked, if anything.
 ```
+Research is often the largest item and is human work that cannot be automated — always its
+own line, never folded into "context". If a value is dev-provided but missing, write
+"not recorded" for that line, not a number.
 
 ## 9. Memory
 
-When done, write an entry to `.atl/memory/` (`YYYY-MM-DD_HH-MM_<slug>.md`):
+When done, write an entry to `.atl/memory/YYYY-MM/<REPO>/DEVSYM-<n>` (`YYYY-MM-DD_HH-MM_<slug>.md`):
 What was done / Files touched / Decisions made / Open questions.
 If there was a correction or review finding, a separate file `correction-<slug>.md`:
 What was wrong / Correct approach / Rule going forward.

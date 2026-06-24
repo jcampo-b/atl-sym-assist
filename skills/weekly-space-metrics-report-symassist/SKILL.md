@@ -15,23 +15,31 @@ Gather the week's work for the **SymAssist** project (BE / FE / AI) from these s
 in priority order:
 1. `.atl/memory/` files from the last 7 days — primary source. solve-ticket writes a
    per-ticket entry here (step 8c) with the time breakdown, model, and adoption.
-2. `git log` on each repo for the date window — to catch tickets/commits and cross-check.
-3. Session transcripts if available (`list_sessions`) — supplementary; do not rely on them,
+2. `.atl/memory/PR-reviews/YYYY-MM/<REPO>/` from the last 7 days — PR reviews done this
+   week (review-only passes), each with its own SPACE log (time spent reviewing, model,
+   findings count). Structure: one folder per month, one subfolder per repo (BE/FE/AI).
+   Read the current month's folder and, if the week spans two months, the previous one too.
+3. `git log` on each repo for the date window — to catch tickets/commits and cross-check.
+4. Session transcripts if available (`list_sessions`) — supplementary; do not rely on them,
    they may be absent.
 
-For each ticket, extract:
+For each solved ticket, extract:
 - Linear ticket key and title (`DEVSYM-XXX`).
 - Estimation (points and/or hours from the ticket).
 - What was done (changes / deliverables).
 - The time breakdown from the step-8c block in `.atl/memory/`.
 
+For each PR review, extract: issue, repo, time spent reviewing, model, findings count.
+PR reviews are a SEPARATE category from solved tickets — never merge the two counts.
+
 If a ticket has no recorded times, mark it as "times not recorded" instead of inventing
 them. Collect ALL such tickets and surface them in the missing-times checklist (STEP 4).
 
 ## STEP 2 — Per-task activity checklist
-- Explain context to Claude: X min
-- Prepare/create the PR: X min
-- Review Claude's modifications: X min
+- Research (API / approach / docs): X min
+- Context to Claude: X min
+- Claude execution + PR: X min
+- Review modifications (IDE): X min
 - **Subtotal: X h Y min**
 (No "explain context to Danny/DevOps" — that was Newbook-specific. If an analogous item
 shows up in SymAssist, add it; otherwise omit it.)
@@ -40,7 +48,8 @@ shows up in SymAssist, add it; otherwise omit it.)
 - **Performance (P):** actual time vs estimated.
 - **Adoption (A):** % of tasks 100% AI vs with intervention; how much was reworked.
 - **Time Saved:** estimated - actual.
-- **Model used:** Opus / Sonnet (optional — Opus for architecture/perf/caching/auth, Sonnet for scoped fixes/FE/discovery).
+- **Model used:** Opus / Sonnet (optional — Opus for architecture/perf/caching/auth,
+  Sonnet for scoped fixes/FE/discovery).
 
 ## STEP 4 — Slack format (paste EXACTLY)
 
@@ -62,9 +71,10 @@ list says "none", the report is ready to post as-is.]
 *Changes:* description
 
 ⏱️ *Time breakdown:*
+  • Research (API / approach / docs): X min
   • Context to Claude: X min
-  • Prepare PR: X min
-  • Review modifications: X min
+  • Claude execution + PR: X min
+  • Review modifications (IDE): X min
   *Total: X h Y min*
 
 💾 *Time saved:* X h Y min
@@ -77,11 +87,25 @@ list says "none", the report is ready to post as-is.]
 
 ---
 
+*🔍 PR REVIEWS* (review-only — separate from solved tickets)
+
+*Review:* DEVSYM-XXX (BE/FE/AI)
+  • Time spent reviewing: X min
+  • Findings: N blockers, M should-fix, K nits
+  • Model: [Opus/Sonnet]
+  • Verdict: [approved | needs changes]
+
+[REPEAT for each review; omit this whole section if no reviews this week]
+
+---
+
 *📈 WEEKLY TOTALS*
-  • Total time spent: X h
+  • Tickets completed: X
+  • PR reviews: X
+  • Total time spent (tickets + reviews): X h
   • Total estimated: Y h
   • *Total saved: Z h* ✨
-  • PRs: X
+  • PRs opened: X
   • Average per task: X h
   • Model(s): [list]
   • Baseline: 2x
