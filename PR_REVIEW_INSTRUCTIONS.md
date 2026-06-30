@@ -1,132 +1,218 @@
 # PR Review Instructions
 
 > **Purpose.** This file defines the complete flow for a **review-only** pass on a
-> branch. Paste it (or keep it loaded in the project) and open a chat with:
+> branch. Open a chat with Claudio and say:
 >
-> > "Do a PR review. Repo: BE. Branch: `fix/devsym-319-status-edge-case`. The dev implemented: xxx"
+> > "Do a PR review. Repo: FE. Branch: `DEVSYM-33-build-workflow-view-ex-kanban-frontend`. The dev implemented: new Workflow page with status lanes, filters, and task detail popover."
 >
-> The agent then runs the whole flow below: read context → diff → review → record
-> in memory → wait for approval → close. No code is written, committed, or pushed.
+> Claudio runs the full flow below: read context → diff → scope gate → review →
+> record in memory → wait for approval → close.
+> No code is written, committed, or pushed.
 
 ---
 
 ## Role
 
-You are doing a **review-only** pass on a branch. You will NOT write code, commit,
-push, or fix anything. Your output is a list of clear, actionable review comments
-plus a memory record of the review.
-
-## Workspace layout
-
-Orchestration root:
-`/Users/awesomejohnny/Development/Braintly/SymAssist`
-
-Repos under it:
-- Backend (BE): `/Users/awesomejohnny/Development/Braintly/SymAssist/SymAssist-Backend`
-- Frontend (FE): `/Users/awesomejohnny/Development/Braintly/SymAssist/SymAssist-Frontend`
-- AI Service: `/Users/awesomejohnny/Development/Braintly/SymAssist/SymAssist-AI-Service`
-
-Shared memory dir: `/Users/awesomejohnny/Development/Braintly/SymAssist/.atl/memory`
-
-## Base branch per repo (what to diff against)
-
-- BE → `dev`
-- FE → `stage`
-- AI Service → `dev`
-
-If the user specifies a different base branch in chat, use that instead.
-
-## What the user provides in their message
-
-- The repo (BE / FE / AI Service).
-- The branch to review (the one the dev pushed).
-- A description of what the dev implemented / wants reviewed.
+Review-only pass. You will NOT write code, commit, push, or fix anything.
+Output: a list of actionable findings + a memory record of this review.
 
 ---
 
-## Step 0 — Read context first
+## Workspace layout
 
-`cd` into the correct repo for the target. Then, before anything, read:
-- `AGENTS.md`
-- All files in `.atl/memory/`
-- `linter.md`
-- `.atl/skills/code-review/SKILL.md`
+Orchestration root: `/Users/awesomejohnny/Development/Braintly/SymAssist`
 
-If the changes touch RM integration (BE), also read `docs/rent-manager-integration.md`
+Repos:
+- BE: `/Users/awesomejohnny/Development/Braintly/SymAssist/SymAssist-Backend`
+- FE: `/Users/awesomejohnny/Development/Braintly/SymAssist/SymAssist-Frontend`
+- AI: `/Users/awesomejohnny/Development/Braintly/SymAssist/SymAssist-AI-Service`
+
+Memory dir: `/Users/awesomejohnny/Development/Braintly/SymAssist/.atl/memory`
+
+Base branch per repo (unless user overrides):
+- BE → `dev`
+- FE → `stage`
+- AI → `dev`
+
+---
+
+## Step 0 — Read context
+
+```bash
+cd <repo-path>
+```
+
+Read in this order:
+1. `AGENTS.md`
+2. `.atl/memory/RULES.md`
+3. `linter.md`
+4. `.atl/skills/code-review/SKILL.md`
+
+If changes touch RM integration (BE only): also read `docs/rent-manager-integration.md`
 and `docs/rent-manager-filters.md`.
+
+**What this context is for:** architectural conventions, known traps, linter rules,
+layer discipline. It is background that helps you evaluate the diff faster.
+It is NOT a source of findings. Findings come only from the diff read in Step 1.
+
+Do NOT grep session memory. The diff is the context for this review.
+
+GitHub auth (before any `gh` command):
+```bash
+gh auth switch -u jcampo-b
+```
+
+---
 
 ## Step 1 — Get the diff
 
 ```bash
-cd <repo-path>
 git fetch origin
 git checkout <branch>
 git diff origin/<base-branch>...<branch>
 ```
 
-Use the base branch for that repo (BE=dev, FE=stage, AI=dev) unless the user
-overrode it. Review every changed file in the diff.
+Read every changed file in the diff. This is the ground truth. Nothing outside
+this diff is reviewable in this PR.
+
+---
+
+## Step 1b — Scope gate (MANDATORY — paste output in chat before continuing)
+
+```bash
+git diff --name-only origin/<base-branch>...<branch>
+```
+
+Paste the full output in chat as a labeled block:
+
+```
+Files in scope:
+src/features/workflow/hooks/use-workflow-filters.ts
+src/features/workflow/components/StatusCategoryRow.tsx
+...
+```
+
+**Hard rule:** any finding whose file is not in this list is invalid and must be
+discarded. Stop here and paste the list before writing a single finding.
+
+---
 
 ## Step 2 — Review criteria
 
-Evaluate the changes against, in this order:
-1. The dev's stated focus (what they said they implemented / want reviewed).
-2. `.atl/skills/code-review/SKILL.md`.
-3. Layer discipline: RRM → RM → SA → FE. No PascalCase RM field names outside
-   `app/Modules/Integrations/RentManager/`. FE/SA never coupled to RM.
-4. Within-layer responsibilities (FormRequest = validation, Service = orchestration,
-   StateMachine = transitions, Mapper = translation, Controller = thin).
-5. Known RM traps in `AGENTS.md` / memory (Title required on PATCH, Status embed,
-   StatusID 1 → Virgin, hard-delete, no OR in filters, read-only computed fields, etc.).
-6. Linter rules in `linter.md` — flag anything that would break the linter.
-7. Code quality rules: no over-engineering, no dead/defensive code, no speculative
-   abstractions, no one-off methods extracted without a second caller.
+Evaluate only the files in the Step 1b list, against:
 
-(Criteria 3–6 are BE-specific. For FE and AI Service, apply the dev's focus, the
-code-review skill, that repo's conventions, and its linter; skip RM-layer rules that
-don't apply.)
+1. Dev's stated focus.
+2. `.atl/skills/code-review/SKILL.md`.
+3. Layer discipline: RRM → RM → SA → FE. No RM PascalCase outside
+   `app/Modules/Integrations/RentManager/`.
+4. Within-layer responsibilities (FormRequest / Service / StateMachine / Mapper /
+   Controller).
+5. Known RM traps (from `AGENTS.md` / `RULES.md`): Title on PATCH, Status embed,
+   StatusID 1 → Virgin, hard-delete, no OR in filters, read-only computed fields.
+6. Linter rules from `linter.md`.
+7. Code quality: no dead code, no speculative abstractions, no one-off extractions
+   without a second caller, no over-engineering.
+
+Criteria 3–6 are BE-specific. For FE/AI: apply dev's focus, code-review skill,
+and that repo's linter. Skip RM-layer rules.
+
+---
 
 ## Step 3 — Output the review
 
-Output ONLY review comments. For each finding:
-- **File + line** (e.g. `app/Modules/Tasks/Services/TaskService.php:42`)
-- **Severity**: `blocker` / `should-fix` / `nit`
-- **What's wrong** — one line.
-- **Why** — cite the rule, skill, trap, or doc it violates.
-- **Suggested fix** — what to change (described, NOT applied).
+For each finding, output ALL of these fields in this exact order:
 
-Group findings by severity, blockers first. If a file is clean, don't mention it.
-End with a one-line verdict: ready to merge / needs changes before merge.
+---
 
-## Step 4 — Record the review in memory
+**File:** `<repo-relative path>`
+**Code snippet** (paste the exact lines from the file that you are flagging — use
+`sed -n '<start>,<end>p' <path>` to get them; do not paraphrase or reconstruct):
+```
+<literal lines from the file>
+```
+**Severity:** `blocker` / `should-fix` / `nit`
+**What's wrong:** one line.
+**Why:** cite the rule, skill, trap, or doc it violates.
+**Suggested fix:** describe the change — do NOT apply it.
+**Comment for the dev:** short, polite, English — ready to paste into the PR.
 
-After producing the review, create a memory file in:
-`/Users/awesomejohnny/Development/Braintly/SymAssist/.atl/memory/PR-reviews`
+---
 
-Create the `PR-reviews/` folder if it doesn't exist.
+**Why snippets instead of line numbers:**
+Line numbers drift between versions and are easy to misremember. A literal snippet
+is self-verifying — the dev can find it instantly with Ctrl+F, and a fabricated
+snippet is immediately obvious. Never substitute a line number for a snippet. If you
+cannot produce the real snippet with `sed -n`, you do not have the real location —
+find it before writing the finding.
 
-Filename: `YYYY-MM-DD_HH-MM_pr-review-<issue>.md` (use the issue/ticket from the branch
-name, e.g. `devsym-319`; if none, use the branch name).
+Group findings: blockers first, then should-fix, then nits.
+Skip clean files — do not mention them.
+End with a one-line verdict: **ready to merge** / **needs changes before merge**.
+
+---
+
+## Step 4 — Record in memory
+
+Create this file (make folders if needed):
+```
+/Users/awesomejohnny/Development/Braintly/SymAssist/.atl/memory/PR-reviews/YYYY-MM/<REPO>/YYYY-MM-DD_pr-review-<issue>.md
+```
+
+Where:
+- `YYYY-MM` = current year-month (e.g. `2026-06`)
+- `<REPO>` = `BE`, `FE`, or `AI`
+- `<issue>` = ticket from the branch name (e.g. `devsym-33`); if none, use branch name
 
 Contents:
-- **Review opened** — timestamp (date + time), repo, branch, base branch, issue.
-- **Dev's stated focus** — what they said they implemented.
-- **Findings** — the full list from Step 3, grouped by severity.
-- **Verdict** — ready / needs changes.
+```markdown
+## Review opened
+- Timestamp:
+- Repo:
+- Branch:
+- Base branch:
+- Issue:
 
-This file stays OPEN for the duration of the flow — the closing entry (Step 5) gets
-appended to this SAME file. Tell the user the path of the file you created.
+## Dev's stated focus
+<what they said they implemented>
 
-## Step 5 — Close the flow (only when the user says the PR is approved)
+## Files in scope
+<paste the Step 1b list verbatim>
 
-The flow does NOT end after the review. It ends when the user explicitly says the PR
-was approved/merged.
+## Findings
+<full list from Step 3, grouped by severity, including each snippet>
 
-When they do, APPEND a closing entry to the same memory file from Step 4:
-- **Review closed** — timestamp (date + time).
-- **Resolution** — PR approved/merged.
-- **Notes** — anything relevant the user mentioned at closing (which findings were
-  addressed, which were waived, etc.).
+## Verdict
+<ready to merge | needs changes before merge>
+
+## SPACE log
+- Time spent reviewing: TBD
+- Model:
+- Findings: N blockers, M should-fix, K nits
+- Verdict:
+```
+
+Tell Johnny the path of the file you created, then ask in Spanish:
+"¿Cuánto tiempo te llevó **revisar** este PR? (Lo necesito para el SPACE log.)"
+
+This is about Johnny's review time (reading + thinking), not implementation time.
+Once he answers, update the SPACE log. If he says "skip", write "not recorded".
+
+---
+
+## Step 5 — Close (only when Johnny confirms the PR is approved or merged)
+
+Append to the same memory file:
+```markdown
+## Review closed
+- Timestamp:
+- Resolution: approved / merged
+- Notes: <which findings were addressed, which were waived>
+```
+
+Ask first:
+"Antes de cerrar, ¿cuántos minutos te llevó leer y validar el review?
+(Tu tiempo de lectura, no el mío de ejecución.)"
+If he says "skip" or doesn't answer → write "not recorded". Never guess.
 
 Then stop.
 
@@ -134,9 +220,15 @@ Then stop.
 
 ## Hard rules
 
-- Do NOT edit, create, or delete any file EXCEPT the PR-review memory file in `.atl/memory/PR-reviews`.
-- Do NOT commit or push.
-- Do NOT apply fixes — only describe them.
-- Do NOT modify any other file in `.atl/` (it is read-only context except for the
-  memory file you write).
-- Do NOT consider the task done until the user confirms the PR is approved (Step 5).
+- Do NOT edit any file except the PR-review memory file in `.atl/memory/PR-reviews/`.
+- Do NOT commit, push, or apply fixes.
+- Do NOT write a finding for a file not in the Step 1b list.
+- Do NOT write a finding without the literal code snippet from the file.
+- Do NOT consider the task done until Johnny confirms approval (Step 5).
+
+---
+
+## SPACE log (for weekly report)
+- Time spent reviewing: X min        [Johnny-provided, ask before closing]
+- Model: [Opus | Sonnet]
+- Findings: N blockers, M should-fix, K nits

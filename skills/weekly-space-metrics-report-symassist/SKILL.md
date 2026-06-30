@@ -121,6 +121,23 @@ list says "none", the report is ready to post as-is.]
 - A single copy-paste-able block. NO code blocks or backticks.
 - All generated content (changes, adoption notes, everything) must be in English.
 
+## LINE BREAK RULES — CRITICAL
+Each bullet point MUST be on its own line. Never join multiple bullet points on a single
+line separated by • characters. The correct format for a review block is:
+
+*Review:* DEVSYM-XXX (BE)
+  • Time spent reviewing: X min
+  • Findings: N blockers, M should-fix, K nits
+  • Model: Opus
+  • Verdict: approved
+
+NOT this (WRONG — all bullets collapsed onto one line):
+Review: DEVSYM-XXX (BE) • Time spent reviewing: X min • Findings: N blockers ...
+
+Each field in a review block and each bullet in the WEEKLY TOTALS must start on a new
+line. A blank line must separate each review block from the next. When in doubt, add a
+newline — never collapse multiple items onto the same line.
+
 ## HOW IT RUNS
 This runs as a **local scheduled task** in Claude Code (Schedule → New task), NOT as a
 cloud Routine. Reason: the data sources (`.atl/memory/`, git log) and this personal skill

@@ -162,7 +162,7 @@ The agent layer NEVER modifies itself during work — it only reads from it. Eve
 - The rule engine fires AFTER a transition is written. Logic that bypasses
   `assertCanAdvance()` (emergency, rework) goes in `TaskService::updateStatus()`,
   not in a rule.
--  IMPORTANT: Always read linter.md to be aligned in each task in the Backend, this way, the code won't break when the linter runs.
+- IMPORTANT: Always read linter.md to be aligned in each task in the Backend, this way, the code won't break when the linter runs.
 
 ## Laravel 12 rules
 - Providers: `bootstrap/providers.php` only.
@@ -251,43 +251,57 @@ If there are conflicts, resolve them, run `docker compose exec app php artisan t
 pre-existing failing tests were already failing on `dev` before proceeding.
 
 ## Memory
-At the start of every new session, read all files in `.atl/memory/` before
-doing any work. These files contain corrections, known traps, and decisions
-from prior sessions that must not be repeated.
 
-After completing any task, write an entry to `.atl/memory/`:
-- Filename: `YYYY-MM-DD_HH-MM_<short-slug>.md`
+### Structure
+
+```
+.atl/memory/
+  RULES.md                      ← consolidated corrections and rules, always read at session start
+  sessions/YYYY-MM/<REPO>/      ← session logs and correction files, NOT read at startup
+  PR-reviews/YYYY-MM/<REPO>/    ← PR review files, NOT read at startup
+```
+
+### At session start — read exactly these, no more
+
+1. `.atl/memory/RULES.md` — always, no exceptions.
+2. Any session file matching the current ticket key:
+   ```bash
+   grep -rl "devsym-<n>" /Users/awesomejohnny/Development/Braintly/SymAssist/.atl/memory/sessions/
+   ```
+   Read only the matches. If none found, skip.
+
+Do NOT read the full memory tree. Do NOT read all files in `sessions/` or `PR-reviews/`.
+
+### After completing any task — write a session log
+
+- Path: `.atl/memory/sessions/YYYY-MM/<REPO>/DEVSYM-<n>/YYYY-MM-DD_HH-MM_<slug>.md`
 - Sections: What was done / Files touched / Decisions made / Open questions
 
-After receiving a correction or code review finding, write an entry to `.atl/memory/`:
-- Filename: `YYYY-MM-DD_HH-MM_correction-<short-slug>.md`
-- Sections: What was wrong / What the correct approach is / Rule to apply going forward
+### After a correction or review finding — two actions, both required
 
-After receiving PR review comments, save each finding to memory before
-applying any fix.
+1. Write the correction file:
+   - Path: `.atl/memory/sessions/YYYY-MM/<REPO>/YYYY-MM-DD_HH-MM_correction-<slug>.md`
+   - Sections: What was wrong / Correct approach / Rule going forward
 
-After completing any session (task done, PR opened, or work paused), produce
-a session summary in chat with the following structure:
+2. Promote the rule to `RULES.md` immediately — append one entry under the correct section.
+   Entry format:
+   ```
+   > **Rule:** imperative sentence.
+   > **Source:** correction filename (e.g. `2025-06_correction-patch-title.md`).
+   > **Why:** the failure mode this prevents.
+   ```
+
+Never leave a rule only in a correction file. `RULES.md` is the single readable source at session start.
+
+### After PR review comments — same two-action protocol
+
+Save the finding as a correction file AND promote the rule to `RULES.md` before applying any fix.
+
+### Session summary (always at session end)
+
+Produce in chat:
 - **What was done** — one paragraph
 - **Skills used** — list which skills were read and why
 - **Files touched** — list of files modified, created, or deleted
 - **Decisions made** — key architectural or implementation choices
 - **Open questions / follow-ups** — anything unresolved or pending
-
-This ensures corrections are not repeated across tickets.
-At the start of every new session, read all files in `.atl/memory/` before
-doing any work. These files contain corrections, known traps, and decisions
-from prior sessions that must not be repeated.
-
-After completing any task, write an entry to `.atl/memory/`:
-- Filename: `YYYY-MM-DD_HH-MM_<short-slug>.md`
-- Sections: What was done / Files touched / Decisions made / Open questions
-
-After receiving a correction or code review finding, write an entry to `.atl/memory/`:
-- Filename: `YYYY-MM-DD_HH-MM_correction-<short-slug>.md`
-- Sections: What was wrong / What the correct approach is / Rule to apply going forward
-
-After receiving PR review comments, save each finding to memory before
-applying any fix.
-
-This ensures corrections are not repeated across tickets.

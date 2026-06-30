@@ -15,9 +15,15 @@ You are solving Linear ticket **$ARGUMENTS** for SymAssist.
 
 Read, in this order, before doing anything else:
 1. `.atl/AGENTS.md` — conventions, 4-layer architecture, RM traps, git workflow, code quality rules.
-2. All files in `.atl/memory/` — corrections and decisions from prior sessions that must NOT be repeated.
+2. `.atl/memory/RULES.md` — consolidated corrections and decisions. Always read this file.
+   Then run: grep -rl "devsym-<n>" .atl/memory/sessions/
+   and read only the matching files for this ticket. Do NOT read the full sessions/ tree.
 3. `linter.md` of the target repo — to avoid breaking the linter when implementing.
-4. `.atl/skills/code-review/SKILL.md` — the checklist you will self-review against in step 5.
+4. `.atl/skills/code-review/SKILL.md` — the checklist you will self-review against in step 5
+5. Source `/Users/awesomejohnny/Development/Braintly/SymAssist/.env` to load `SYMASSIST_ROOT`.
+   All paths under `.atl/memory/` in this skill are relative to `$SYMASSIST_ROOT`, NOT to the
+   current repo's working directory. If `.env` is missing or `SYMASSIST_ROOT` is unset, STOP
+   and ask Johnny instead of guessing the root.
 
 GitHub: before any `gh` command, run `gh auth switch -u jcampo-b`.
 
@@ -88,7 +94,7 @@ already failing on `dev`/`stage`, but flag them in the summary.
 ## 5. Self-review + human review gate
 
 Run the `.atl/skills/code-review/SKILL.md` checklist against every file you touched.
-Save relevant findings to `.atl/memory/` if something comes up worth not repeating.
+Save relevant findings to `$SYMASSIST_ROOT/.atl/memory/` if something comes up worth not repeating.
 
 Then STOP. Don't commit, don't open a PR. Notify:
 "Implementation is ready. Please review the code in your IDE before I commit. Let me know when to proceed."
@@ -139,25 +145,27 @@ execution time, from session timestamps); the dev fills the human items from fre
 
 Prompt the dev with exactly these questions (in Spanish, since the chat is in Spanish):
 "Antes de cerrar, pasame los tiempos reales de este ticket:
-  • Research (investigar API/approach/docs): ¿cuántos min?
-  • Explicar contexto a Claude (armar el prompt, juntar links): ¿cuántos min?
-  • Revisar las modificaciones en el IDE: ¿cuántos min?
+  • Research (API / approach / docs): ¿cuántos min?
+  • Context to Claude (armar el prompt, juntar links): ¿cuántos min?
+  • Claude execution + PR
+  • Review modifications (IDE): ¿cuántos min?
 (El tiempo de ejecución mío + PR lo completo yo.)"
 
 If the dev doesn't answer or says "skip", record the items as "not recorded" — never fill
 them with a guess.
 
-Then write the block to `.atl/memory/` (and/or the internal comment):
+Then write the block to `$SYMASSIST_ROOT/.atl/memory/` (and/or the internal comment):
 ```
 DEVSYM-<n> — <title>
-Estimation: <ticket points / hours>
-Actual time:
-  • Research (API / approach / docs): X min        [dev-provided, omit line if 0]
-  • Explain context to Claude: X min               [dev-provided]
-  • Claude execution + PR: X min                    [Claude-measured, from timestamps]
-  • Review modifications (IDE): X min               [dev-provided]
+Estimation: <points / hours>
+Time breakdown:
+  • Research (API / approach / docs): X min        [dev-provided, omit if 0]
+  • Context to Claude: X min                       [dev-provided]
+  • Claude execution + PR: X min                   [Claude-measured]
+  • Review modifications (IDE): X min              [dev-provided]
   • Subtotal: X h Y min
 Adoption: [100% AI | with intervention] — what was reworked, if anything.
+Model: [Opus | Sonnet]
 ```
 Research is often the largest item and is human work that cannot be automated — always its
 own line, never folded into "context". If a value is dev-provided but missing, write
@@ -165,10 +173,19 @@ own line, never folded into "context". If a value is dev-provided but missing, w
 
 ## 9. Memory
 
-When done, write an entry to `.atl/memory/YYYY-MM/<REPO>/DEVSYM-<n>` (`YYYY-MM-DD_HH-MM_<slug>.md`):
-What was done / Files touched / Decisions made / Open questions.
-If there was a correction or review finding, a separate file `correction-<slug>.md`:
-What was wrong / Correct approach / Rule going forward.
+All memory paths in this step are relative to `$SYMASSIST_ROOT` (loaded in step 0), NOT to
+the current repo's working directory.
+
+Write a session log:
+  Path: `$SYMASSIST_ROOT/.atl/memory/sessions/YYYY-MM/<REPO>/DEVSYM-<n>/YYYY-MM-DD_HH-MM_<slug>.md`
+  Sections: What was done / Files touched / Decisions made / Open questions.
+
+If there was a correction or review finding, two actions:
+1. Write: `$SYMASSIST_ROOT/.atl/memory/sessions/YYYY-MM/<REPO>/YYYY-MM-DD_HH-MM_correction-<slug>.md`
+   Sections: What was wrong / Correct approach / Rule going forward.
+2. Promote immediately to `$SYMASSIST_ROOT/.atl/memory/RULES.md` under the correct section.
+
+Never leave a rule only in the correction file.
 
 ---
 
