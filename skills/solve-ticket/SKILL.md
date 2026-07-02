@@ -18,7 +18,10 @@ Read, in this order, before doing anything else:
 2. `.atl/memory/RULES.md` — consolidated corrections and decisions. Always read this file.
    Then run: grep -rl "devsym-<n>" .atl/memory/sessions/
    and read only the matching files for this ticket. Do NOT read the full sessions/ tree.
-3. `linter.md` of the target repo — to avoid breaking the linter when implementing.
+3. `linter.md` — read from `$SYMASSIST_ROOT/.atl/linter.md`, NOT from the target repo's
+   working dir. Same path-drift trap as `.atl/memory/`: `$SYMASSIST_ROOT` is loaded in
+   step 0.5 below, and every `.atl/`-rooted path in this skill (memory, linter, RULES,
+   sessions) resolves relative to it, never to the repo you happen to be sitting in.
 4. `.atl/skills/code-review/SKILL.md` — the checklist you will self-review against in step 5
 5. Source `/Users/awesomejohnny/Development/Braintly/SymAssist/.env` to load `SYMASSIST_ROOT`.
    All paths under `.atl/memory/` in this skill are relative to `$SYMASSIST_ROOT`, NOT to the
@@ -108,6 +111,14 @@ After confirmation:
 - Sync with the base: `git fetch origin && git merge origin/<base>`. If there are conflicts,
   resolve them, run `docker compose exec app php artisan test`, and confirm the pre-existing
   failures were already on the base.
+- **Pre-push gate (step 9 first, always):** step 9 (session log + any correction promoted
+  to RULES.md) must be written BEFORE `git push`, not after. This is not optional and not
+  deferrable to "later in the PR". Immediately before pushing, state to Johnny, filling in
+  the actual rule if one was promoted this session:
+  "Antes del push, cumplí el paso 9 de la skill: escribí el session log en
+  `$SYMASSIST_ROOT/.atl/memory/sessions/` y promoví a RULES.md la regla de <slug/nombre de
+  la regla> (ver arriba el texto exacto)." If nothing was promoted this session (no
+  correction found), say so explicitly instead of silently skipping the line.
 - `git push -u origin <branch>`.
 - `gh pr create --base <base>` (BE/AI=dev, FE=stage).
 - PR title: `<type>(DEVSYM-<n>): <subject>`.
@@ -154,7 +165,11 @@ Prompt the dev with exactly these questions (in Spanish, since the chat is in Sp
 If the dev doesn't answer or says "skip", record the items as "not recorded" — never fill
 them with a guess.
 
-Then write the block to `$SYMASSIST_ROOT/.atl/memory/` (and/or the internal comment):
+Then write the block to:
+  `$SYMASSIST_ROOT/.atl/memory/sessions/YYYY-MM/<REPO>/DEVSYM-<n>/space-time-log.md`
+(same `YYYY-MM/<REPO>/DEVSYM-<n>/` scheme as the session log in step 9, fixed filename so it's
+always found by ticket without grepping — no timestamp/slug in the filename, unlike step 9's
+session log). Also paste the block into the internal chat summary (8b) for the dev to see now.
 ```
 DEVSYM-<n> — <title>
 Estimation: <points / hours>
@@ -172,6 +187,11 @@ own line, never folded into "context". If a value is dev-provided but missing, w
 "not recorded" for that line, not a number.
 
 ## 9. Memory
+
+**Ordering note:** the session log and any RULES.md promotion below are NOT deferred to the
+end — they are written and promoted BEFORE `git push`, per the pre-push gate in step 6. Only
+the SPACE time-logging in step 8c (which needs dev-provided times, gathered after the PR)
+happens later. Don't push with an unwritten session log or an un-promoted correction.
 
 All memory paths in this step are relative to `$SYMASSIST_ROOT` (loaded in step 0), NOT to
 the current repo's working directory.

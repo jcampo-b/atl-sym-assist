@@ -13,12 +13,28 @@ SymAssist tickets, with totals at the end.
 ## STEP 1 — Review the work
 Gather the week's work for the **SymAssist** project (BE / FE / AI) from these sources,
 in priority order:
-1. `.atl/memory/` files from the last 7 days — primary source. solve-ticket writes a
-   per-ticket entry here (step 8c) with the time breakdown, model, and adoption.
-2. `.atl/memory/PR-reviews/YYYY-MM/<REPO>/` from the last 7 days — PR reviews done this
-   week (review-only passes), each with its own SPACE log (time spent reviewing, model,
+1. `.atl/memory/sessions/YYYY-MM/<REPO>/DEVSYM-<n>/space-time-log.md` — primary source.
+   solve-ticket writes one of these per ticket (step 8c) with the time breakdown, model,
+   and adoption. Glob `sessions/<this-month>/*/DEVSYM-*/space-time-log.md` and, if the week
+   spans two months, also `sessions/<prev-month>/*/DEVSYM-*/space-time-log.md`.
+   **Dating caveat:** this file has a fixed name with no date in it, unlike the session log
+   sitting next to it (`YYYY-MM-DD_HH-MM_<slug>.md` in the same `DEVSYM-<n>/` folder). To
+   decide if a ticket falls in the 7-day window, use the sibling session log's timestamp in
+   that same folder as the anchor date, not the file's mtime (mtime is unreliable across
+   syncs/pulls). If no sibling session log exists for a `space-time-log.md`, fall back to
+   `git log` for that DEVSYM key to date it, and flag it in the summary if still ambiguous.
+   **A month folder holds multiple weeks — never dump the whole folder.** After globbing,
+   drop any ticket whose anchor date falls outside [last Friday, today]. A ticket already
+   reported in a previous week's run must not reappear just because it shares the same
+   `YYYY-MM` folder.
+2. `.atl/memory/PR-reviews/YYYY-MM/<REPO>/YYYY-MM-DD_pr-review-<issue>.md` — PR reviews done
+   this week (review-only passes), each with its own SPACE log (time spent reviewing, model,
    findings count). Structure: one folder per month, one subfolder per repo (BE/FE/AI).
-   Read the current month's folder and, if the week spans two months, the previous one too.
+   Glob `PR-reviews/<this-month>/*/*.md`, and the previous month too if the week spans two.
+   **Filter by the date prefix in the filename** (`YYYY-MM-DD_pr-review-*`) — only keep
+   files whose date falls in [last Friday, today]. Same rule as point 1: never include a
+   review just because it's in the current month's folder if its date is from an earlier
+   week.
 3. `git log` on each repo for the date window — to catch tickets/commits and cross-check.
 4. Session transcripts if available (`list_sessions`) — supplementary; do not rely on them,
    they may be absent.

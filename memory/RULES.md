@@ -3,6 +3,38 @@ _Last consolidated: 2026-06-26. Add new rules here; do NOT add new correction fi
 
 ---
 
+## RM token cache TTL
+
+RM invalidates API tokens after 15 min of inactivity (or 24h absolute) —
+confirmed against official RM API docs. Never cache an RM token with a TTL
+longer than ~10 min; the 401+handleUnauthorized() retry is the safety net,
+but a TTL that outlives RM's inactivity window forces avoidable 401s after
+any idle gap. The TTL value lives in `config('rent_manager.token_cache_ttl_minutes')`
+(default 10, `RM_TOKEN_CACHE_TTL_MINUTES` env override) as the single source
+of truth — never hardcode a TTL per-consumer.
+
+> **Rule:** Resolved in DEVSYM-400. All four consumers (`RentManagerAuthService`,
+> `UserSessionContext`, `PmConnectionContext`, `AuthService::login()`) read
+> `config('rent_manager.token_cache_ttl_minutes')`. If you add a new place
+> that persists `rm_token_expires_at` or caches an RM token, read this config
+> key — do not hardcode a new TTL literal.
+> **Source:** `sessions/2026-07/BE/DEVSYM-400/2026-07-02_16-56_centralize-rm-token-cache-ttl.md`
+> **Why:** This is exactly how the bug was introduced originally — the 23h
+> value was copy-pasted into 4 separate places (one, `AuthService::login()`,
+> wasn't even caught by the ticket that reported the other three).
+
+> **Rule:** When writing a characterization test for a TTL/expiry value, use
+> `Mockery::on()` asserting exact `Carbon` equality against `Carbon::setTestNow()`
+> frozen time — do not test real cache expiry by advancing time. The test
+> cache driver may be Redis, whose TTL is real wall-clock time and ignores
+> `Carbon::setTestNow()`.
+> **Source:** `sessions/2026-07/BE/DEVSYM-400/2026-07-02_16-56_centralize-rm-token-cache-ttl.md`
+> **Why:** A test that "passes" by accident (real Redis TTL happens to not
+> have expired yet in test runtime) is a false positive that won't actually
+> catch a regression in the TTL calculation.
+
+---
+
 ## RM Integration
 
 > **Rule:** RM omits `Hours` from the default ServiceManagerIssue response entirely — unlike DueDate/ScheduledDate, it is never present unless explicitly requested via `fields=...,Hours,...`.
