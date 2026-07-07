@@ -1,7 +1,7 @@
 # SymAssist — Agent Instructions
 
 ## Project
-SymAssist is a property-management assistant backed by a Laravel 12 modular monolith (`SymAssist-Backend/`, PHP 8.3+). The backend acts as a BFF over the RentManager (RRM) property-management API: it authenticates against RentManager, proxies and reshapes RRM data into stable snake_case contracts, and exposes task management, daily planning, dashboard KPIs, onboarding, and contact-info endpoints for the frontend. RentManager remains the system of record; the backend owns translation, caching, and the API surface the FE consumes.
+SymAssist is a property-management assistant backed by a Laravel 12 modular monolith (`SymAssist-Backend/`, PHP 8.2+). The backend acts as a BFF over the RentManager (RRM) property-management API: it authenticates against RentManager, proxies and reshapes RRM data into stable snake_case contracts, and exposes task management, daily planning, dashboard KPIs, onboarding, and contact-info endpoints for the frontend. RentManager remains the system of record; the backend owns translation, caching, and the API surface the FE consumes.
 
 ## Source of truth
 Read before any task:
@@ -169,7 +169,7 @@ The agent layer NEVER modifies itself during work — it only reads from it. Eve
 - Middleware: `bootstrap/app.php` only (no `Http/Kernel.php`).
 - Scheduler: `routes/console.php` (no `Console/Kernel.php`).
 - All `.md` docs → `/docs` (except `README.md` in root).
-- PHP 8.3+: use constructor promotion, `match`, enums, `readonly`.
+- PHP 8.2+: use constructor promotion, `match`, enums, `readonly`.
 
 ## Git workflow
 Read `.atl/skills/git-workflow/SKILL.md` before any git operation.

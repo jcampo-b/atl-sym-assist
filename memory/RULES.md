@@ -183,6 +183,10 @@ _(No new rules this cycle — format already covered in the solve-ticket skill.)
 > **Source:** `2026-06-10_13-15_devsym-305-auth-token-ttl.md`
 > **Why:** Increased from 7 days as a stopgap while a proper refresh endpoint is planned; longer TTL = longer blast radius for a leaked token.
 
+> **Rule:** Before wiring any real caller to `PmConnectionContext` (e.g. under DEVSYM-373/374), re-examine `EnsureRmTokenValid`'s expiry gate — it was validated only against the `UserSessionContext` path.
+> **Source:** `sessions/2026-07/SymAssist-Backend/DEVSYM-404/space-time-log.md`
+> **Why:** The `rm_password` allow-through added in DEVSYM-404 is safe only because every gated route resolves through `UserSessionContext` today; a route resolving through `PmConnectionContext` has a different self-heal path never checked against this gate.
+
 ---
 
 ## Open / unresolved
