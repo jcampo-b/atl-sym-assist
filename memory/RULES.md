@@ -187,6 +187,86 @@ _(No new rules this cycle — format already covered in the solve-ticket skill.)
 > **Source:** `sessions/2026-07/SymAssist-Backend/DEVSYM-404/space-time-log.md`
 > **Why:** The `rm_password` allow-through added in DEVSYM-404 is safe only because every gated route resolves through `UserSessionContext` today; a route resolving through `PmConnectionContext` has a different self-heal path never checked against this gate.
 
+> **Rule:** There are TWO identity models. `users`/`App\Models\User` is RM-coupled (rm_user_id, rm_token, rm_roles, linked_owner/tenant/vendor; login upserts by rm_user_id; `user_type` derived from RM roles) = external portal identity (owner/tenant/vendor) authenticated via RM. Any SymAssist-owned identity that is decoupled from RM (internal staff / superusers) belongs in a SEPARATE table (`internal_users`), never in `users`.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-376-be-internal-user-account-management.md`
+> **Why:** Extending `users` for RM-decoupled staff would drag RM fields and RM-login semantics onto an identity the ticket mandates be RM-independent, breaking the decoupling.
+
+> **Rule:** `rm_super_admin` (`EnsureIsSuperAdmin`) is the ONLY admin gate — it compares `user()->rm_user_id` to `config('rent_manager.admin_user_id')` (default 393, `RM_ADMIN_USER_ID`). There is NO local role/permission table behind admin authz. Reuse this middleware for any "admin-guarded" endpoint; do not invent a roles-based admin check.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-376-be-internal-user-account-management.md`
+> **Why:** Building a parallel roles-based admin gate duplicates authz and drifts into DEVSYM-373's scope (role semantics/policy live there, not in feature tickets).
+
+> **Rule:** There is NO local `roles`/permissions table. The `Users` module's `RoleController`/`RoleService` are RM remote-API passthroughs (`rentManagerService->getRoles/createRole`), NOT a local model — do not confuse them with a local roles table, and do not route local role data through RM.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-376-be-internal-user-account-management.md`
+> **Why:** Wiring a local feature's roles through the RM passthrough would make an RM call where none is wanted and couple SA identity to RM.
+
+> **Rule:** There is NO mail infrastructure in the backend — zero Mailables/Notifications, no `app/Mail`, no email views; `config/mail.php` is stock with `MAIL_MAILER` defaulting to `log`. A ticket saying "reuse the existing mailer" means: build on stock Laravel `Mail`/`Notification` (the first one in the app), and expect emails to land in the log until a real transport (SMTP/SES) is configured in env.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-376-be-internal-user-account-management.md`
+> **Why:** Assuming a mailer service exists leads to a phantom-dependency dead-end; and shipping mail without flagging the unconfigured transport looks "done" but silently logs instead of sending.
+
+> **Rule:** For enum/policy/state-machine-style domain machinery (e.g. DEVSYM-373's `Role` + policy + fan-out), mirror `app/Modules/Tasks/StateMachine/` (native backed enum + small stateless services, RM mapping kept OUT of the enum) — NOT the `Users/` CRUD skeleton (Controller/Service/Request/DTO). The ONLY SA-native enum today is `Tasks/StateMachine/TaskStatus`; `Role` is greenfield.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-373-role-policy-fanout-recon.md`
+> **Why:** Pure domain machinery has no HTTP/CRUD surface; the CRUD skeleton would drag controllers/requests/routes onto logic that 373 mandates be table-less and endpoint-less.
+
+---
+
+## DEVSYM-399 foundation — as-built
+
+> **Rule:** `pm_connections` (migration `2026_07_01_000001`) columns: `id`; `rm_location_id` (unsigned bigint, unique, NO FK); `pm_name` (nullable); `rm_credential_ref` (ENCRYPTED text — stores a `{username,password}` JSON blob, decrypted in `PmConnectionContext`); `status` (enum `pending|active|suspended`, default `pending`); `onboarded_at`; timestamps. There IS a credential column (`rm_credential_ref`) — the "no credential column" assumption is FALSE. "active" is a `status` enum value, not a boolean. The model has no relations/scopes.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-374-cross-pm-data-aggregation-and-caching-layer.md`
+> **Why:** Refinements/code that assume no stored credentials, a boolean `active`, or a FK/relation on this table are wrong on all three counts; "all active PM connections a role reaches" must map to `status = 'active'` and a mapping that does not exist yet.
+
+> **Rule:** DEVSYM-399 ships TWO `RentManagerContext` implementations: `UserSessionContext` (request-bound, reads `Auth::user()`, `locationId()` null) and `PmConnectionContext` (request-INDEPENDENT by construction, `locationId()` = `rm_location_id`, token via `credential_mode`). "Partner token" is a `credentialMode()` BRANCH inside `PmConnectionContext`, NOT a separate `PartnerTokenContext` class. `RentManagerContextResolver` exposes `clientForConnection`/`contextForConnection`/`clientForCurrentSession` but has ZERO callers (dead scaffolding). Default container binding is `RentManagerContext → UserSessionContext` (`AppServiceProvider`). `EnsureRmTokenValid` is request-only and applied to no route.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-374-cross-pm-data-aggregation-and-caching-layer.md`
+> **Why:** A background/off-request Location-scoped client is buildable on the `PmConnectionContext` primitive, but the intended glue (`RentManagerContextResolver`) is unwired — treating it as "already wired" is drift; and there is no `PartnerTokenContext` class to reference.
+
+> **Rule:** Nothing in the app sets `pm_connections.status = 'active'` yet — only the migration default (`pending`) and tests write `status`; the Onboarding module never touches `PmConnection`, and there is no seeder/factory/endpoint that activates a connection. So 373's "onboarding hook" is FREE: a live `where status = 'active'` scope auto-includes any future activated PM with nothing to wire.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-373-role-policy-fanout-recon.md`
+> **Why:** Treating activation as work 373 must build is wrong scope — activation belongs to onboarding/376; 373 only queries the live status.
+
+---
+
+## Caching layer — as-built
+
+> **Rule:** The existing cache layer (DEVSYM-329/400) is SA-domain only; the Integrations layer caches ONLY the RM token. Two patterns: SWR via `Cache::flexible($key, [fresh, stale], $cb)` (`PropertyPerformanceService` `[300,900]`, `VacancyService`) and `Cache::remember` + version-counter (`TaskService` 5min + `TaskCacheVersion`, `TaskStatsService` 15min, `DailyPlannerService` 5min). Redis store, NO `Cache::tags()` (deliberate — not store-portable). All domain keys are `Auth::id()`-based. NO scheduled/proactive refresh anywhere — refresh is lazy TTL, write-triggered version bump, or `?refresh=1`. Domain TTLs are hardcoded class constants; only the token TTL is config-driven (`RM_TOKEN_CACHE_TTL_MINUTES`, default 10).
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-374-cross-pm-data-aggregation-and-caching-layer.md`
+> **Why:** Reuse over duplication — a new caching feature extends this precedent (Location-keyed `Cache::flexible`), it does not invent a mechanism; and there is no existing per-connection key or proactive refresh to lean on.
+
+> **Rule:** ZERO scheduled tasks (`routes/console.php` has only `inspire`) and ZERO queued jobs (`Integrations/Jobs` is `.gitkeep`; no `ShouldQueue`/`dispatch` repo-wide). Horizon `^5.43` + Redis queue infra is provisioned but idle — any refresh job would be first-of-its-kind.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-374-cross-pm-data-aggregation-and-caching-layer.md`
+> **Why:** A scheduled cache-warm path is not a small add — it introduces the first off-request RM caller AND the first scheduled job; scope it as a deliberate boundary, not an incidental detail.
+
+---
+
+## Superuser stack ownership
+
+> **Rule:** DEVSYM-373 owns cross-PM fan-out + role-reach policy; DEVSYM-374 owns caching + counts + PM-tagging on top. This supersedes any earlier note that 374 owns the fan-out or is "basic fan-out, no caching". (The `EnsureIsSuperAdmin` gate is documented above; note additionally that it is NOT connection-aware.)
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-374-cross-pm-data-aggregation-and-caching-layer.md`
+> **Why:** 374 cannot assume the fan-out exists (373 is unstarted) and must not re-scope 373's policy; conflating the two produces an undefined 373→374 input contract.
+
+> **Rule:** Final Superuser-stack ownership split. **DEVSYM-399** = credentials + `RentManagerContextResolver::clientForConnection`. **DEVSYM-373** = `enum Role` (SA source of truth) + an `active` scope on `PmConnection` + `SuperuserAccessPolicy::reachableConnections(Role)` + `CrossPmFanout::fanOut(Role, callable)` — pure stateless domain machinery, NO table/endpoint/auth. **DEVSYM-376** = `roles` table (seeded from `Role::cases()`) + `internal_users` + `role_id`. **DEVSYM-374** = caching + counts + PM-tagging + HTTP endpoint, wrapping 373's `fanOut`. Auth/login = a later ticket. "Assignable role" is resolved: 373 DEFINES roles, 376 ASSIGNS them.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-373-superuser-roles-and-cross-pm-access-policy.md`
+> **Why:** Prevents the recurring 373/374/376 scope bleed — role *semantics* live in 373, the role *store* in 376, and *consumption* in 374; each ticket builds only its layer.
+
+> **Rule:** 373→374 contract: `CrossPmFanout::fanOut` returns `array<int rm_location_id, array>` — one raw decoded-JSON array per reached connection (`RentManagerHttpClient::get()` returns `array`). 374 supplies the per-connection operation (the `callable`), caches per `rm_location_id`, then merges/tags/counts. NEVER pre-merge in 373 — the per-Location split is exactly what makes 374's per-Location caching possible.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-373-superuser-roles-and-cross-pm-access-policy.md`
+> **Why:** A pre-merged blob collapses the Location keys 374 needs to cache/tag on, forcing 374 to re-split or abandon per-Location caching.
+
+> **Rule:** RM rate limits are isolated per customer DB (DEVSYM-392), so a single fan-out pass (one request per Location) is well within budget. Do NOT stagger the fan-out and do NOT reach for `RentManagerHttpClient::poolGet`/`pool` concurrency for it (YAGNI). Supersedes the earlier "stagger the fan-out (500 req/60s)" note.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-373-superuser-roles-and-cross-pm-access-policy.md`
+> **Why:** The 500 req/60s cap is per user+DB, not global; fanning out across N Locations issues one request per DB, so staggering/pooling adds complexity for a limit that is never in play.
+
+---
+
+## Process gates
+
+> **Rule:** For tickets depending on already-merged code, run a read-only repo-diagnosis (report findings, no plan/code) BEFORE refining or coding.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-374-cross-pm-data-aggregation-and-caching-layer.md`
+> **Why:** Silent assumptions about repo shape are the #1 source of drift — in this session two invented "architecture decisions" collapsed once the existing cache + off-request-context reality was surfaced.
+
+> **Rule:** Bash output in `symassist-backend` is redaction-mangled — identifiers like `role_id`, `active`, `Sanctum` are rewritten to `n`/`ln` in `grep`/`cat` output. Use the **Read tool** for exact signatures; treat shell output as unreliable for identifiers.
+> **Source:** `refinement/BE/2026-07/2026-07-09-devsym-373-role-policy-fanout-recon.md`
+> **Why:** Confirming a signature or column name from mangled shell output silently reads the wrong identifier; the Read tool is unfiltered.
+
 ---
 
 ## Open / unresolved
