@@ -81,6 +81,9 @@ of truth — never hardcode a TTL per-consumer.
 > **Source:** `2026-06-23_19-28_voice-caller-architecture-discovery.md`
 > **Why:** ivfflat centroids are computed at index-creation time; empty → 0 centroids → 0 results always.
 
+> **Rule:** The RentManager Partner Token is bound to the whitelisted static egress IP (DEVSYM-394). From any non-whitelisted origin — a laptop, ngrok, CI — RRM answers HTTP 401 with `Authentication Failed - You are not authorized to access from your IP address.` and `ErrorCode: -2146233087`. This is permanent, not a pending item. Any local capability that depends on a Partner Token call must be served by a fake bound in the container, never by a real call.
+> **Source:** DEVSYM-556.
+
 ---
 
 ## Layer discipline
@@ -92,6 +95,9 @@ of truth — never hardcode a TTL per-consumer.
 > **Rule:** Filtering on a PascalCase RM field reached via an `embeds` relation (not just top-level fields) must live in a method inside `app/Modules/Integrations/RentManager/` (Service or Mapper), never inline in an SA-layer caller — even when that method has only one caller today. The "confirm >1 caller before adding a service method" rule does NOT override this; layer discipline wins when the two conflict.
 > **Source:** `sessions/2026-07/BE/2026-07-13_correction-embedded-field-filter-leak.md`
 > **Why:** `PortfolioCacheService` (DEVSYM-374) first read `$unit['Property']['IsActive']` directly in the Superuser (SA) module to filter out units of inactive properties — an easy-to-miss variant of the cardinal-rule violation since the PascalCase field arrived via an embed, not a top-level response field. Fixed via `RentManagerUnitService::getActiveUnits()`.
+
+> **Rule:** Environment is a detail of the outermost ring. No service, mapper or state machine calls `app()->environment()`. If a capability applies to one environment only, it is provided by an implementation bound in the container, and the enabling point is the service provider. An environment conditional inside domain code is a seam whose only decision point is the text editor — which is why `DO NOT COMMIT` comments do not prevent commits.
+> **Source:** DEVSYM-556.
 
 ---
 
@@ -183,6 +189,10 @@ _(No new rules this cycle — format already covered in the solve-ticket skill.)
 > **Source:** `sessions/2026-07/BE/2026-07-14_22-18_correction-timing-safe-login.md` (DEVSYM-415)
 > **Why:** A fast-fail (~3 ms) on a missing account vs a real bcrypt check (~270 ms) lets an attacker enumerate which accounts exist by response timing. Measured after fix: success 265 ms vs all failures 270–274 ms — indistinguishable.
 
+> **Rule (mechanism of the above):** `nullsafe.neverNull` fires on the **syntactic position**, NOT on whether the receiver is nullable. Any `?->` whose result is the left operand of `??` is reported — verbatim: `Using nullsafe property access "?->prop" on left side of ?? is unnecessary. Use -> instead.` — because `??` absorbs the null either way. It fires even when the receiver is genuinely `?Foo`. Two valid remedies: assign the property to a variable first, then `??` (DEVSYM-415), or drop the `??` entirely and let `(int) null === 0` / the downstream guard handle it (DEVSYM-517 `TaskService::pending()`).
+> **Source:** DEVSYM-517 PR #313 review nit, empirically re-run 2026-07-31 (`sessions/2026-07/BE/2026-07-31_18-04_correction-pr-review-517-findings.md`).
+> **Why:** A reviewer read the DEVSYM-415 entry as being about non-null narrowing and concluded the rule couldn't apply to a nullable receiver, so the guard comment looked unfounded. It applies. Naming the real mechanism stops that re-derivation. Corollary: when a review finding is self-flagged as unverified ("could not run PHPStan"), run the tool — don't defer to the reviewer and don't defend the original wording.
+
 ---
 
 ## FE-specific
@@ -259,6 +269,10 @@ _(No new rules this cycle — format already covered in the solve-ticket skill.)
 > **Rule:** DEVSYM-399 ships TWO `RentManagerContext` implementations: `UserSessionContext` (request-bound, reads `Auth::user()`, `locationId()` null) and `PmConnectionContext` (request-INDEPENDENT by construction, `locationId()` = `rm_location_id`, token via `credential_mode`). "Partner token" is a `credentialMode()` BRANCH inside `PmConnectionContext`, NOT a separate `PartnerTokenContext` class. `RentManagerContextResolver` exposes `clientForConnection`/`contextForConnection`/`clientForCurrentSession` but has ZERO callers (dead scaffolding). Default container binding is `RentManagerContext → UserSessionContext` (`AppServiceProvider`). `EnsureRmTokenValid` is request-only and applied to no route.
 > **Source:** `refinement/BE/2026-07/2026-07-09-devsym-374-cross-pm-data-aggregation-and-caching-layer.md`
 > **Why:** A background/off-request Location-scoped client is buildable on the `PmConnectionContext` primitive, but the intended glue (`RentManagerContextResolver`) is unwired — treating it as "already wired" is drift; and there is no `PartnerTokenContext` class to reference.
+
+> **Rule:** `pm_connections` holds one row per (corpid, location) — see `candidatesForCorpid()`/`firstForCorpid()`, which exist because a corpid can have several granted locations. So any value that is semantically **per-corpid** but stored on this table (`sa_*_role_id`, `sa_ptr_rm_user_id`) must be written to EVERY row of that corpid, not just one. Whoever writes it — a provisioning command or a human via tinker — must iterate `candidatesForCorpid()`. Never describe such a column as "per-corpid" in a docblock without saying it has to be replicated per row.
+> **Source:** DEVSYM-517 PR #313 review nit, 2026-07-31 (`sessions/2026-07/BE/2026-07-31_18-04_correction-pr-review-517-findings.md`).
+> **Why:** A half-provisioned corpid fails on ONE location only: a superuser acting for the un-provisioned location gets a silently empty result while the sibling location works fine. That asymmetry reads like a data problem in RM, not a missing column value, and is expensive to debug.
 
 > **Rule:** Nothing in the app sets `pm_connections.status = 'active'` yet — only the migration default (`pending`) and tests write `status`; the Onboarding module never touches `PmConnection`, and there is no seeder/factory/endpoint that activates a connection. So 373's "onboarding hook" is FREE: a live `where status = 'active'` scope auto-includes any future activated PM with nothing to wire.
 > **Source:** `refinement/BE/2026-07/2026-07-09-devsym-373-role-policy-fanout-recon.md`
@@ -352,7 +366,17 @@ _(No new rules this cycle — format already covered in the solve-ticket skill.)
 > **Owner:** DEVSYM-415 (login + guard for internal_users).
 > **Context:** `PortfolioCacheService::CALLER_ROLE_PLACEHOLDER` (DEVSYM-374) is hardcoded to `Role::PortfolioManager` since there is no real source yet for "which role is the authenticated superuser acting as" — `SuperuserAccessPolicy::reachableConnections()` ignores `$role` today, so this is inert, but must be replaced with the real caller's role once DEVSYM-415 resolves auth.
 > **Source:** `sessions/2026-07/BE/DEVSYM-374/2026-07-13_cross-pm-caching-layer.md`
+> **RESOLVED (DEVSYM-415, merged 2026-07-15):** login + guard shipped. The placeholder still needs replacing with the authenticated caller's real role in a future per-role-gating ticket, but the auth path it was waiting on now exists.
+
 
 > **Owner:** DEVSYM-415 (login + guard for internal_users).
 > **Context:** `EnsureIsSuperAdmin` (aliased as `rm_super_admin`, gates DEVSYM-374's Portfolio endpoint) checks `$request->user()->rm_user_id` against a single hardcoded `config('rent_manager.admin_user_id')` — it authenticates against the RM-coupled `users` table. DEVSYM-376's `internal_users` have no `rm_user_id` and no RM login, so once 376 ships, no internal_user can pass this gate. DEVSYM-415 covers replacing/extending this guard.
 > **Source:** DEVSYM-374 PR review, 2026-07-13.
+> **RESOLVED (DEVSYM-415, merged 2026-07-15):** `EnsureIsInternalUser` (alias `internal_user`) now gates the Portfolio route; `rm_super_admin` retained only for the internal-user CRUD (documented coexistence).
+
+PHPUnit `<env>` tags do not override an OS environment variable that is already set unless `force="true"`. `docker-compose.yml` sets `APP_ENV: local` on the `app` container, so any unforced `<env>` in `phpunit.xml` loses silently and the suite runs in the wrong environment. When adding or auditing test env vars: force them explicitly, and verify with `app()->environment()` inside a running test rather than inferring from test results. A cached config file also defeats the force — once `config:cache` has run, `env()` returns null and the forced value never reaches `config('app.env')`.
+
+
+Never use `git checkout --` or `git reset --hard` as an undo mechanism on a file that holds uncommitted work — it reverts everything uncommitted in that file, not just the change you meant to discard. Use a `cp` backup and restore from it. This has now caused damage twice: a review session that ran `reset --hard` and destroyed the working tree, and a session that silently reverted three of four pending fixes while undoing a test mutation. The second nearly shipped as a complete-looking commit.
+
+A mutation test must assert that the mutation actually applied to the file before running the test. A replacement that silently fails to match produces a false green: you conclude the assertion doesn't catch the defect when in fact you never introduced it. Verify the text changed, then run.
